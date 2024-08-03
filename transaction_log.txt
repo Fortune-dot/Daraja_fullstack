@@ -1,0 +1,3 @@
+[2024-08-03 05:00:21] Received callback: {"Body":{"stkCallback":{"MerchantRequestID":"1c5b-4ba8-815c-ac45c57a3db01819087","CheckoutRequestID":"ws_CO_03082024060344820740408496","ResultCode":0,"ResultDesc":"The service request is processed successfully.","CallbackMetadata":{"Item":[{"Name":"Amount","Value":2.00},{"Name":"MpesaReceiptNumber","Value":"SH31R38Z67"},{"Name":"Balance"},{"Name":"TransactionDate","Value":20240803060020},{"Name":"PhoneNumber","Value":254740408496}]}}}}
+[2024-08-03 05:00:21] Payment successful: CheckoutRequestID: ws_CO_03082024060344820740408496, M-Pesa Receipt: SH31R38Z67
+[2024-08-03 05:00:21] Payment status updated in database: ws_CO_03082024060344820740408496 - COMPLETED

@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>M-Pesa Payment Form</title>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@3.1.0/dist/full.css" rel="stylesheet" type="text/css" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <div class="container mx-auto p-4">
+        <div id="statusMessage" class="mb-4"></div>
+        <div id="successCard" class="hidden mb-4"></div>
+        <form id="paymentForm" class="card w-96 bg-base-100 shadow-xl mx-auto">
+            <div class="card-body">
+                <h2 class="card-title">M-Pesa Payment</h2>
+                <div class="form-control">
+                    <label class="label" for="phoneNumber">
+                        <span class="label-text">Phone Number</span>
+                    </label>
+                    <input type="tel" id="phoneNumber" name="phoneNumber" placeholder="254700000000" class="input input-bordered" required>
+                </div>
+                <div class="form-control">
+                    <label class="label" for="amount">
+                        <span class="label-text">Amount (KES)</span>
+                    </label>
+                    <input type="number" id="amount" name="amount" placeholder="100" class="input input-bordered" required>
+                </div>
+                <div class="card-actions justify-end">
+                    <button type="submit" class="btn btn-primary">Pay Now</button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            let checkoutRequestId = null;
+            let retryCount = 0;
+            const maxRetries = 10;
+            const retryInterval = 5000; // 5 seconds
+
+            $('#paymentForm').on('submit', function(e) {
+                e.preventDefault();
+                
+                $.ajax({
+                    url: 'process_payment.php',
+                    type: 'POST',
+                    data: $(this).serialize(),
+                    dataType: 'json',
+                    beforeSend: function() {
+                        $('#statusMessage').html('<div class="alert alert-info">Processing payment...</div>');
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            $('#statusMessage').html('<div class="alert alert-info">' + response.message + '</div>');
+                            checkoutRequestId = response.checkout_request_id;
+                            retryCount = 0;
+                            pollTransactionStatus();
+                        } else {
+                            $('#statusMessage').html('<div class="alert alert-error">' + response.message + '</div>');
+                        }
+                    },
+                    error: function() {
+                        $('#statusMessage').html('<div class="alert alert-error">An error occurred. Please try again.</div>');
+                    }
+                });
+            });
+
+            function pollTransactionStatus() {
+                if (!checkoutRequestId) return;
+
+                $.ajax({
+                    url: 'check_status.php',
+                    type: 'GET',
+                    data: { checkout_request_id: checkoutRequestId },
+                    dataType: 'json',
+                    success: function(response) {
+                        if (response.status === 'COMPLETED') {
+                            displaySuccessCard(response.mpesa_receipt, response.amount);
+                        } else if (response.status === 'FAILED') {
+                            $('#statusMessage').html('<div class="alert alert-error">' + response.message + '</div>');
+                        } else if (retryCount < maxRetries) {
+                            $('#statusMessage').html('<div class="alert alert-info">Payment is being processed. Please wait...</div>');
+                            retryCount++;
+                            setTimeout(pollTransactionStatus, retryInterval);
+                        } else {
+                            $('#statusMessage').html('<div class="alert alert-warning">Payment status check timed out. Please check your M-Pesa for the transaction status.</div>');
+                        }
+                    },
+                    error: function() {
+                        $('#statusMessage').html('<div class="alert alert-error">Error checking payment status.</div>');
+                        if (retryCount < maxRetries) {
+                            retryCount++;
+                            setTimeout(pollTransactionStatus, retryInterval);
+                        }
+                    }
+                });
+            }
+
+            function displaySuccessCard(mpesaReceipt, amount) {
+                const successCard = `
+                    <div class="card w-96 bg-base-100 shadow-xl mx-auto fade-in">
+                        <div class="card-body items-center text-center">
+                            <div class="text-6xl mb-4">🎉</div>
+                            <h2 class="card-title text-success">Payment Successful!</h2>
+                            <p>Your payment of KES ${amount} has been processed.</p>
+                            <div class="bg-gray-100 p-4 rounded-lg mt-4">
+                                <p class="text-sm text-gray-600">Transaction Code</p>
+                                <p class="text-lg font-semibold">${mpesaReceipt}</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                $('#successCard').html(successCard).removeClass('hidden');
+                $('#statusMessage').html('');
+                $('#paymentForm').hide();
+            }
+        });
+    </script>
+</body>
+</html>
